@@ -8,8 +8,8 @@ import json
 
 
 # Author: Martin Svensson
-# Version: 0.12.2
-#
+# Version: 0.12.2-alhpa
+
 
 
 # Global variables to store selected folder, date, time, and text filter
