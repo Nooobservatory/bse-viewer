@@ -306,6 +306,16 @@ text_input.pack(side=tk.TOP, padx=10, pady=7)
 apply_text_filter_button = tk.Button(control_frame, text="Apply Selection Filters", command=apply_text_filter)
 apply_text_filter_button.pack(side=tk.TOP, padx=10, pady=10)
 
+# Create a button to export images
+export_button = tk.Button(control_frame, text="Export Images", command=export_images)
+export_button.pack(side=tk.BOTTOM, padx=10, pady=10)
+
+# Add a namebase entry widget to the UI
+namebase_input = tk.Entry(control_frame)
+namebase_input.pack(side=tk.BOTTOM, padx=10, pady=0)
+namebase_label = tk.Label(control_frame, text="Name Base:")
+namebase_label.pack(side=tk.BOTTOM, padx=10, pady=7)
+
 # Create a button to select a folder
 select_folder_button = tk.Button(control_frame, text="Select Folder", command=select_folder)
 select_folder_button.pack(side=tk.BOTTOM, padx=10, pady=40)  # Anchored to the bottom with margin
@@ -322,18 +332,6 @@ index_slider.pack(side=tk.BOTTOM, padx=10, pady=10)
 index_slider.bind("<ButtonPress-1>", handle_slider_click)
 index_slider.bind("<ButtonRelease-1>", handle_slider_release)
 #index_slider.bind("<Motion>", slider_changed_event)
-
-# Create a button to export images
-export_button = tk.Button(control_frame, text="Export Images", command=export_images)
-export_button.pack(side=tk.BOTTOM, padx=10, pady=10)
-
-# Add a namebase entry widget to the UI
-namebase_input = tk.Entry(control_frame)
-namebase_input.pack(side=tk.BOTTOM, padx=10, pady=0)
-namebase_label = tk.Label(control_frame, text="Name Base:")
-namebase_label.pack(side=tk.BOTTOM, padx=10, pady=7)
-
-
 
 # Create a label and combo boxes for date and time selection
 date_label = tk.Label(control_frame, text="From Date (YYYY-MM-DD):")
