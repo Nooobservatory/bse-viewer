@@ -7,8 +7,9 @@ import datetime
 import json
 
 
-# Author: Martin Svensson
+# Author: Martin Svensson / Noobservatory
 # Version: 0.12.2-alhpa
+#
 
 
 
