@@ -7,6 +7,11 @@ import datetime
 import json
 
 
+# Author: Martin Svensson
+# Version: 0.12.2
+#
+
+
 # Global variables to store selected folder, date, time, and text filter
 selected_folder = ""
 current_index = 0
