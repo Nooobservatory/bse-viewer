@@ -6,7 +6,8 @@ from PIL import Image, ImageTk
 import datetime
 import json
 import shutil
-
+import cv2
+import numpy as np
 
 # Author: Martin Svensson / Nooobservatory
 # Version: 0.12.2-alhpa
@@ -21,6 +22,7 @@ current_index = 0
 selected_date = None
 selected_time = None
 text_filter = ""  # Initialize the text filter to an empty string
+timelapse_filename = ""
 
 # Global variables for "Follow Latest" functionality
 follow_latest_enabled = False
@@ -34,7 +36,8 @@ def save_config():
         "selected_folder": selected_folder,
         "selected_date": selected_date.get(),
         "selected_time": selected_time.get(),
-        "text_filter": text_filter  # Save the text filter in the configuration
+        "text_filter": text_filter,  # Save the text filter in the configuration
+        "basename": basename_input.get().strip() # Save basenmame from input
     }
     with open("config.json", "w") as config_file:
         json.dump(config, config_file)
@@ -231,9 +234,10 @@ def slider_changed(event):
 # Function to export filtered images
 def export_images():
     global filtered_images, text_filter
-    prefix="Layer"
+    save_config()
+    prefix="layer"
     filtername=""
-    namebase = namebase_input.get().strip() 
+    basename = basename_input.get().strip() 
     if filtered_images:
         export_folder = filedialog.askdirectory(title="Select a folder to export images")
         if export_folder:
@@ -241,16 +245,16 @@ def export_images():
                 export_folder = os.path.join(export_folder, text_filter)
                 filtername="_"+text_filter
                 os.makedirs(export_folder, exist_ok=True)
-                #Get namebase from GUI
+                #Get basename from GUI
                 
             for i, image_path in enumerate(filtered_images):
                 image_filename = os.path.basename(image_path)
-                #Replace original filename with namebase and datetime if specified
-                if namebase:
+                #Replace original filename with basename and datetime if specified
+                if basename:
                     modification_date = os.path.getmtime(image_path)
                     modification_date_str = datetime.datetime.fromtimestamp(modification_date).strftime("%Y%m%d_%H%M%S%f")
                     image_name_without_extension, extension = os.path.splitext(image_filename)
-                    new_filename = f"{namebase}_{modification_date_str}{extension}"
+                    new_filename = f"{modification_date_str}_{basename}{extension}"
                 else:
                     new_filename = f"{image_filename}"
                 export_path = os.path.join(export_folder, f"{prefix}{i+1}{filtername}_{new_filename}")
@@ -258,6 +262,70 @@ def export_images():
             print(f"Images exported to {export_folder}")
     else:
         print("No images to export.")
+
+# Function to set the filename based on user input
+def export_timelapse():
+    save_config()
+    global filtered_images, timelapse_filename
+    file_path = filedialog.asksaveasfilename(defaultextension=".mp4",initialfile=f"{basename_input.get().strip()}_{text_filter}_Layers{len(filtered_images)}" , filetypes=[("MP4 files", "*.mp4")])
+    if file_path:
+        timelapse_filename=file_path
+        print(f"Filepath input:{file_path}")
+        create_timelapse()
+
+    else:
+        print("No filepath")
+
+
+# Function to export a timelapse video
+def create_timelapse(fps=2, target_resolution=(1920, 1080)):
+    global filtered_images, timelapse_filename
+    if not filtered_images:
+        print("No images available for creating a timelapse.")
+        return
+
+    if not timelapse_filename:
+        print("Please set the timelapse filename first.")
+        return
+
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(timelapse_filename, fourcc, fps, target_resolution)
+
+    try:
+        for image_path in filtered_images:
+            frame = cv2.imread(image_path)
+
+            # Calculate the aspect ratio of the original image
+            height, width, _ = frame.shape
+            aspect_ratio = width / height
+
+            if aspect_ratio >= (target_resolution[0] / target_resolution[1]):
+                new_width = target_resolution[0]
+                new_height = int(new_width / aspect_ratio)
+            else:
+                new_height = target_resolution[1]
+                new_width = int(new_height * aspect_ratio)
+
+            # Resize the frame to fit inside the target resolution while preserving the aspect ratio
+            frame = cv2.resize(frame, (new_width, new_height))
+
+            # Create a black canvas of the target resolution
+            canvas = np.zeros((target_resolution[1], target_resolution[0], 3), dtype=np.uint8)
+
+            # Calculate the position to paste the resized image at the center of the canvas
+            x_offset = (target_resolution[0] - new_width) // 2
+            y_offset = (target_resolution[1] - new_height) // 2
+
+            # Paste the resized image onto the canvas
+            canvas[y_offset:y_offset + new_height, x_offset:x_offset + new_width] = frame
+
+            out.write(canvas)
+
+        out.release()
+        print(f"Timelapse video saved as {timelapse_filename}")
+    except Exception as e:
+        print(f"An error occurred while creating the timelapse: {e}")
+
 # Create a tkinter window
 window = tk.Tk()
 window.rowconfigure(0, weight=1)
@@ -306,15 +374,20 @@ text_input.pack(side=tk.TOP, padx=10, pady=7)
 apply_text_filter_button = tk.Button(control_frame, text="Apply Selection Filters", command=apply_text_filter)
 apply_text_filter_button.pack(side=tk.TOP, padx=10, pady=10)
 
+
+# Create a button to set the timelapse filename and export folder
+set_filename_button = tk.Button(control_frame, text="Export Timelapse", command=export_timelapse)
+set_filename_button.pack(side=tk.BOTTOM, padx=10, pady=10)
+
 # Create a button to export images
 export_button = tk.Button(control_frame, text="Export Images", command=export_images)
 export_button.pack(side=tk.BOTTOM, padx=10, pady=10)
 
-# Add a namebase entry widget to the UI
-namebase_input = tk.Entry(control_frame)
-namebase_input.pack(side=tk.BOTTOM, padx=10, pady=0)
-namebase_label = tk.Label(control_frame, text="Name Base:")
-namebase_label.pack(side=tk.BOTTOM, padx=10, pady=7)
+# Add a basename entry widget to the UI
+basename_input = tk.Entry(control_frame)
+basename_input.pack(side=tk.BOTTOM, padx=10, pady=0)
+basename_label = tk.Label(control_frame, text="Basename:")
+basename_label.pack(side=tk.BOTTOM, padx=10, pady=7)
 
 # Create a button to select a folder
 select_folder_button = tk.Button(control_frame, text="Select Folder", command=select_folder)
@@ -368,7 +441,11 @@ if os.path.exists("config.json"):
         selected_date.set(config.get("selected_date", str(datetime.date.today())))
         selected_time.set(config.get("selected_time", "00:00"))
         text_filter = config.get("text_filter", "")  # Load the text filter
+        basename=config.get("basename","")
 
+    # Update the text input box with the loaded text filter  
+    basename_input.delete(0,tk.END)    
+    basename_input.insert(0, basename) 
     # Update the text input box with the loaded text filter
     text_input.delete(0, tk.END)  # Clear the current text in the input box
     text_input.insert(0, text_filter)  # Insert the loaded text filter
