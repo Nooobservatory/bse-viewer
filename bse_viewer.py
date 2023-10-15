@@ -5,6 +5,7 @@ from tkinter import filedialog, ttk
 from PIL import Image, ImageTk
 import datetime
 import json
+import shutil
 
 
 # Author: Martin Svensson / Nooobservatory
@@ -15,6 +16,7 @@ import json
 
 # Global variables to store selected folder, date, time, and text filter
 selected_folder = ""
+filtered_images = []
 current_index = 0
 selected_date = None
 selected_time = None
@@ -40,7 +42,7 @@ def save_config():
 
 def show_latest_image():
 
-    global current_index, current_image_path
+    global current_index, current_image_path, filtered_images
     #print("show_latest_image() executed")
     if selected_folder:
         # Get a list of image files in the selected folder
@@ -226,6 +228,36 @@ def slider_changed(event):
         if after_id:
             window.after_cancel(after_id)  # Cancel the scheduled updates
 
+# Function to export filtered images
+def export_images():
+    global filtered_images, text_filter
+    prefix="Layer"
+    filtername=""
+    namebase = namebase_input.get().strip() 
+    if filtered_images:
+        export_folder = filedialog.askdirectory(title="Select a folder to export images")
+        if export_folder:
+            if text_filter:
+                export_folder = os.path.join(export_folder, text_filter)
+                filtername="_"+text_filter
+                os.makedirs(export_folder, exist_ok=True)
+                #Get namebase from GUI
+                
+            for i, image_path in enumerate(filtered_images):
+                image_filename = os.path.basename(image_path)
+                #Replace original filename with namebase and datetime if specified
+                if namebase:
+                    modification_date = os.path.getmtime(image_path)
+                    modification_date_str = datetime.datetime.fromtimestamp(modification_date).strftime("%Y%m%d_%H%M%S%f")
+                    image_name_without_extension, extension = os.path.splitext(image_filename)
+                    new_filename = f"{namebase}_{modification_date_str}{extension}"
+                else:
+                    new_filename = f"{image_filename}"
+                export_path = os.path.join(export_folder, f"{prefix}{i+1}{filtername}_{new_filename}")
+                shutil.copy(image_path, export_path)
+            print(f"Images exported to {export_folder}")
+    else:
+        print("No images to export.")
 # Create a tkinter window
 window = tk.Tk()
 window.rowconfigure(0, weight=1)
@@ -290,6 +322,18 @@ index_slider.pack(side=tk.BOTTOM, padx=10, pady=10)
 index_slider.bind("<ButtonPress-1>", handle_slider_click)
 index_slider.bind("<ButtonRelease-1>", handle_slider_release)
 #index_slider.bind("<Motion>", slider_changed_event)
+
+# Create a button to export images
+export_button = tk.Button(control_frame, text="Export Images", command=export_images)
+export_button.pack(side=tk.BOTTOM, padx=10, pady=10)
+
+# Add a namebase entry widget to the UI
+namebase_input = tk.Entry(control_frame)
+namebase_input.pack(side=tk.BOTTOM, padx=10, pady=0)
+namebase_label = tk.Label(control_frame, text="Name Base:")
+namebase_label.pack(side=tk.BOTTOM, padx=10, pady=7)
+
+
 
 # Create a label and combo boxes for date and time selection
 date_label = tk.Label(control_frame, text="From Date (YYYY-MM-DD):")
