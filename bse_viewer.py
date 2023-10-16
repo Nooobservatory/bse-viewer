@@ -23,7 +23,7 @@ selected_date = None
 selected_time = None
 text_filter = ""  # Initialize the text filter to an empty string
 timelapse_filename = ""
-selected_fps = 0
+selected_fps = int(0)
 
 # Global variables for "Follow Latest" functionality
 follow_latest_enabled = False
@@ -38,7 +38,8 @@ def save_config():
         "selected_date": selected_date.get(),
         "selected_time": selected_time.get(),
         "text_filter": text_filter,  # Save the text filter in the configuration
-        "basename": basename_input.get().strip() # Save basenmame from input
+        "basename": basename_input.get().strip(), # Save basenmame from input
+        "selected_fps": fps_combobox.get()
     }
     with open("config.json", "w") as config_file:
         json.dump(config, config_file)
@@ -279,8 +280,9 @@ def export_timelapse():
 
 
 # Function to export a timelapse video
-def create_timelapse(fps=24, target_resolution=(1920, 1080)):
-    global filtered_images, timelapse_filename
+def create_timelapse(target_resolution=(1920, 1080)):
+    global filtered_images, timelapse_filename,selected_fps
+    print(selected_fps)
     if not filtered_images:
         print("No images available for creating a timelapse.")
         return
@@ -294,7 +296,7 @@ def create_timelapse(fps=24, target_resolution=(1920, 1080)):
     return
 
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(timelapse_filename, fourcc, fps, target_resolution)
+    out = cv2.VideoWriter(timelapse_filename, fourcc, selected_fps, target_resolution)
 
     try:
         for image_path in filtered_images:
@@ -331,6 +333,27 @@ def create_timelapse(fps=24, target_resolution=(1920, 1080)):
     except Exception as e:
         print(f"An error occurred while creating the timelapse: {e}")
 
+def get_selected_fps(event):
+    global selected_fps
+    selected_fps = int(fps_combobox.get())
+    if type(selected_fps) != int:
+        selected_fps=int(30)
+    if selected_fps >= 120:
+        selected_fps=120
+    fps_combobox.set(selected_fps)
+    calculate_timelapse_duration()
+
+
+def calculate_timelapse_duration():
+    selected_fps = int(fps_combobox.get())
+    num_images = len(filtered_images)
+
+    if selected_fps == 0:
+        duration = "N/A"
+    else:
+        duration = f"{num_images / selected_fps:.1f} seconds"
+
+    duration_label.config(text=f"Duration: {duration}")
 
 # Create a tkinter window
 window = tk.Tk()
@@ -380,13 +403,19 @@ text_input.pack(side=tk.TOP, padx=10, pady=7)
 apply_text_filter_button = tk.Button(control_frame, text="Apply Selection Filters", command=apply_text_filter)
 apply_text_filter_button.pack(side=tk.TOP, padx=10, pady=10)
 
+#Duration label
+duration_label = tk.Label(control_frame, text="Duration:")
+duration_label.pack(side=tk.BOTTOM, padx=10, pady=0)
+
 # Create a label and combo box for selecting the frames per second (fps)
 fps_values = [1,2,5,10,15,24,30,60,90,120]  # Example fps values
-selected_fps = tk.StringVar()
-fps_combobox = ttk.Combobox(control_frame, textvariable=selected_fps, values=fps_values, width=5)
+fps_combobox = ttk.Combobox(control_frame, values=fps_values, width=5)
 fps_combobox.set(fps_values[3])  # Set a default value (e.g., 30 fps)
 fps_combobox.pack(side=tk.BOTTOM, padx=10, pady=0)
 fps_combobox['justify'] = 'center'
+fps_combobox.bind("<Return>", get_selected_fps)
+fps_combobox.bind("<<ComboboxSelected>>", get_selected_fps)
+
 
 fps_label = tk.Label(control_frame, text="Frames Per Second (FPS):")
 fps_label.pack(side=tk.BOTTOM, padx=10, pady=0)
@@ -461,6 +490,9 @@ if os.path.exists("config.json"):
         basename=config.get("basename","")
         selected_fps=config.get("selected_fps",30)
 
+
+    #update fps combobox
+    fps_combobox.set(selected_fps)
     # Update the text input box with the loaded text filter  
     basename_input.delete(0,tk.END)    
     basename_input.insert(0, basename) 
@@ -471,6 +503,6 @@ if os.path.exists("config.json"):
 # Change label to selected folder in config file
 folder_label.config(text=f"Selected Folder: {selected_folder}")
 show_latest_image()
-
+calculate_timelapse_duration()
 # Run the tkinter main loop
 window.mainloop()
