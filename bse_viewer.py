@@ -24,6 +24,7 @@ selected_time = None
 text_filter = ""  # Initialize the text filter to an empty string
 timelapse_filename = ""
 selected_fps = int(0)
+include_overlay = False
 
 # Global variables for "Follow Latest" functionality
 follow_latest_enabled = False
@@ -47,7 +48,7 @@ def save_config():
 
 def show_latest_image():
 
-    global current_index, current_image_path, filtered_images
+    global current_index, current_image_path, filtered_images, include_overlay
     #print("show_latest_image() executed")
     if selected_folder:
         # Get a list of image files in the selected folder
@@ -281,7 +282,7 @@ def export_timelapse():
 
 # Function to export a timelapse video
 def create_timelapse(target_resolution=(1920, 1080)):
-    global filtered_images, timelapse_filename,selected_fps
+    global filtered_images, timelapse_filename,selected_fps,include_overlay
     print(selected_fps)
     if not filtered_images:
         print("No images available for creating a timelapse.")
@@ -293,13 +294,16 @@ def create_timelapse(target_resolution=(1920, 1080)):
     
     if not selected_fps:
         print("Please select the frames per second (fps) first.")
-    return
+        return
 
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     out = cv2.VideoWriter(timelapse_filename, fourcc, selected_fps, target_resolution)
-
+   
     try:
-        for image_path in filtered_images:
+        for i, image_path in enumerate(filtered_images):
+
+            print(f"{i+1}/{len(filtered_images)} images processed")
+            
             frame = cv2.imread(image_path)
 
             # Calculate the aspect ratio of the original image
@@ -325,6 +329,17 @@ def create_timelapse(target_resolution=(1920, 1080)):
 
             # Paste the resized image onto the canvas
             canvas[y_offset:y_offset + new_height, x_offset:x_offset + new_width] = frame
+            
+            if include_overlay:
+                # Add text overlay for the image index in the lower left corner
+                text = f"{i:04}"
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                font_scale = 1.2
+                font_color = (255, 255, 255)  # White text
+                font_thickness = 2
+                text_x = 15
+                text_y = target_resolution[1] -25  # Adjust this to control text position
+                cv2.putText(canvas, text, (text_x, text_y), font, font_scale, font_color, font_thickness)
 
             out.write(canvas)
 
@@ -341,6 +356,7 @@ def get_selected_fps(event):
     if selected_fps >= 120:
         selected_fps=120
     fps_combobox.set(selected_fps)
+    save_config()
     calculate_timelapse_duration()
 
 
@@ -354,6 +370,10 @@ def calculate_timelapse_duration():
         duration = f"{num_images / selected_fps:.1f} seconds"
 
     duration_label.config(text=f"Duration: {duration}")
+
+def toggle_overlay():
+    global include_overlay
+    include_overlay = not include_overlay   
 
 # Create a tkinter window
 window = tk.Tk()
@@ -402,6 +422,12 @@ text_input = tk.Entry(control_frame)
 text_input.pack(side=tk.TOP, padx=10, pady=7)
 apply_text_filter_button = tk.Button(control_frame, text="Apply Selection Filters", command=apply_text_filter)
 apply_text_filter_button.pack(side=tk.TOP, padx=10, pady=10)
+
+# Create a checkbox for enabling/disabling the overlay
+overlay_checkbox_var = tk.BooleanVar()
+overlay_checkbox = ttk.Checkbutton(control_frame, text="Add index overlay", variable=overlay_checkbox_var, command=toggle_overlay)
+overlay_checkbox.pack(side=tk.BOTTOM, padx=10, pady=10)
+overlay_checkbox.state(['!alternate'])
 
 #Duration label
 duration_label = tk.Label(control_frame, text="Duration:")
@@ -488,7 +514,7 @@ if os.path.exists("config.json"):
         selected_time.set(config.get("selected_time", "00:00"))
         text_filter = config.get("text_filter", "")  # Load the text filter
         basename=config.get("basename","")
-        selected_fps=config.get("selected_fps",30)
+        selected_fps=int(config.get("selected_fps",30))
 
 
     #update fps combobox
