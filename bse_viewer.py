@@ -23,6 +23,8 @@ selected_date = None
 selected_time = None
 text_filter = ""  # Initialize the text filter to an empty string
 timelapse_filename = ""
+selected_fps = int(0)
+include_overlay = False
 
 # Global variables for "Follow Latest" functionality
 follow_latest_enabled = False
@@ -37,7 +39,8 @@ def save_config():
         "selected_date": selected_date.get(),
         "selected_time": selected_time.get(),
         "text_filter": text_filter,  # Save the text filter in the configuration
-        "basename": basename_input.get().strip() # Save basenmame from input
+        "basename": basename_input.get().strip(), # Save basenmame from input
+        "selected_fps": fps_combobox.get()
     }
     with open("config.json", "w") as config_file:
         json.dump(config, config_file)
@@ -45,7 +48,7 @@ def save_config():
 
 def show_latest_image():
 
-    global current_index, current_image_path, filtered_images
+    global current_index, current_image_path, filtered_images, include_overlay
     #print("show_latest_image() executed")
     if selected_folder:
         # Get a list of image files in the selected folder
@@ -278,8 +281,9 @@ def export_timelapse():
 
 
 # Function to export a timelapse video
-def create_timelapse(fps=24, target_resolution=(1920, 1080)):
-    global filtered_images, timelapse_filename
+def create_timelapse(target_resolution=(1920, 1080)):
+    global filtered_images, timelapse_filename,selected_fps,include_overlay
+    print(selected_fps)
     if not filtered_images:
         print("No images available for creating a timelapse.")
         return
@@ -287,12 +291,19 @@ def create_timelapse(fps=24, target_resolution=(1920, 1080)):
     if not timelapse_filename:
         print("Please set the timelapse filename first.")
         return
+    
+    if not selected_fps:
+        print("Please select the frames per second (fps) first.")
+        return
 
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(timelapse_filename, fourcc, fps, target_resolution)
-
+    out = cv2.VideoWriter(timelapse_filename, fourcc, selected_fps, target_resolution)
+   
     try:
-        for image_path in filtered_images:
+        for i, image_path in enumerate(filtered_images):
+
+            print(f"{i+1}/{len(filtered_images)} images processed")
+            
             frame = cv2.imread(image_path)
 
             # Calculate the aspect ratio of the original image
@@ -318,6 +329,17 @@ def create_timelapse(fps=24, target_resolution=(1920, 1080)):
 
             # Paste the resized image onto the canvas
             canvas[y_offset:y_offset + new_height, x_offset:x_offset + new_width] = frame
+            
+            if include_overlay:
+                # Add text overlay for the image index in the lower left corner
+                text = f"{i:04}"
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                font_scale = 1.2
+                font_color = (255, 255, 255)  # White text
+                font_thickness = 2
+                text_x = 15
+                text_y = target_resolution[1] -25  # Adjust this to control text position
+                cv2.putText(canvas, text, (text_x, text_y), font, font_scale, font_color, font_thickness)
 
             out.write(canvas)
 
@@ -325,6 +347,33 @@ def create_timelapse(fps=24, target_resolution=(1920, 1080)):
         print(f"Timelapse video saved as {timelapse_filename}")
     except Exception as e:
         print(f"An error occurred while creating the timelapse: {e}")
+
+def get_selected_fps(event):
+    global selected_fps
+    selected_fps = int(fps_combobox.get())
+    if type(selected_fps) != int:
+        selected_fps=int(30)
+    if selected_fps >= 120:
+        selected_fps=120
+    fps_combobox.set(selected_fps)
+    save_config()
+    calculate_timelapse_duration()
+
+
+def calculate_timelapse_duration():
+    selected_fps = int(fps_combobox.get())
+    num_images = len(filtered_images)
+
+    if selected_fps == 0:
+        duration = "N/A"
+    else:
+        duration = f"{num_images / selected_fps:.1f} seconds"
+
+    duration_label.config(text=f"Duration: {duration}")
+
+def toggle_overlay():
+    global include_overlay
+    include_overlay = not include_overlay   
 
 # Create a tkinter window
 window = tk.Tk()
@@ -374,6 +423,28 @@ text_input.pack(side=tk.TOP, padx=10, pady=7)
 apply_text_filter_button = tk.Button(control_frame, text="Apply Selection Filters", command=apply_text_filter)
 apply_text_filter_button.pack(side=tk.TOP, padx=10, pady=10)
 
+# Create a checkbox for enabling/disabling the overlay
+overlay_checkbox_var = tk.BooleanVar()
+overlay_checkbox = ttk.Checkbutton(control_frame, text="Add index overlay", variable=overlay_checkbox_var, command=toggle_overlay)
+overlay_checkbox.pack(side=tk.BOTTOM, padx=10, pady=10)
+overlay_checkbox.state(['!alternate'])
+
+#Duration label
+duration_label = tk.Label(control_frame, text="Duration:")
+duration_label.pack(side=tk.BOTTOM, padx=10, pady=0)
+
+# Create a label and combo box for selecting the frames per second (fps)
+fps_values = [1,2,5,10,15,24,30,60,90,120]  # Example fps values
+fps_combobox = ttk.Combobox(control_frame, values=fps_values, width=5)
+fps_combobox.set(fps_values[3])  # Set a default value (e.g., 30 fps)
+fps_combobox.pack(side=tk.BOTTOM, padx=10, pady=0)
+fps_combobox['justify'] = 'center'
+fps_combobox.bind("<Return>", get_selected_fps)
+fps_combobox.bind("<<ComboboxSelected>>", get_selected_fps)
+
+
+fps_label = tk.Label(control_frame, text="Frames Per Second (FPS):")
+fps_label.pack(side=tk.BOTTOM, padx=10, pady=0)
 
 # Create a button to set the timelapse filename and export folder
 set_filename_button = tk.Button(control_frame, text="Export Timelapse", command=export_timelapse)
@@ -409,18 +480,19 @@ index_slider.bind("<ButtonRelease-1>", handle_slider_release)
 # Create a label and combo boxes for date and time selection
 date_label = tk.Label(control_frame, text="From Date (YYYY-MM-DD):")
 date_label.pack(side=tk.TOP, padx=10, pady=0)
-selected_date = ttk.Combobox(control_frame)
+selected_date = ttk.Combobox(control_frame,width=12)
 selected_date.pack(side=tk.TOP, padx=10, pady=0)
 selected_date["values"] = [str((datetime.datetime.now() - datetime.timedelta(days=i)).date()) for i in range(7)]
 selected_date.set(str(datetime.date.today()))
+selected_date['justify'] = 'center'
 
 time_label = tk.Label(control_frame, text="From Time (HH:MM):")
 time_label.pack(side=tk.TOP, padx=10, pady=0)
-selected_time = ttk.Combobox(control_frame)
+selected_time = ttk.Combobox(control_frame, width=12)
 selected_time.pack(side=tk.TOP, padx=10, pady=0)
 selected_time["values"] = [str(datetime.time(i, 0).strftime("%H:%M")) for i in range(24)]
 selected_time.set("00:00")
-
+selected_time['justify'] = 'center'
 # Create a button to apply date and time filter
 #apply_filter_button = tk.Button(control_frame, text="Apply Filter", command=show_latest_image)
 #apply_filter_button.pack(side=tk.TOP, padx=10, pady=14)
@@ -442,7 +514,11 @@ if os.path.exists("config.json"):
         selected_time.set(config.get("selected_time", "00:00"))
         text_filter = config.get("text_filter", "")  # Load the text filter
         basename=config.get("basename","")
+        selected_fps=int(config.get("selected_fps",30))
 
+
+    #update fps combobox
+    fps_combobox.set(selected_fps)
     # Update the text input box with the loaded text filter  
     basename_input.delete(0,tk.END)    
     basename_input.insert(0, basename) 
@@ -453,6 +529,6 @@ if os.path.exists("config.json"):
 # Change label to selected folder in config file
 folder_label.config(text=f"Selected Folder: {selected_folder}")
 show_latest_image()
-
+calculate_timelapse_duration()
 # Run the tkinter main loop
 window.mainloop()
