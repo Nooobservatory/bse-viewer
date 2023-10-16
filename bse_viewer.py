@@ -278,7 +278,7 @@ def export_timelapse():
 
 
 # Function to export a timelapse video
-def create_timelapse(fps=2, target_resolution=(1920, 1080)):
+def create_timelapse(fps=24, target_resolution=(1920, 1080)):
     global filtered_images, timelapse_filename
     if not filtered_images:
         print("No images available for creating a timelapse.")
@@ -386,7 +386,7 @@ export_button.pack(side=tk.BOTTOM, padx=10, pady=10)
 # Add a basename entry widget to the UI
 basename_input = tk.Entry(control_frame)
 basename_input.pack(side=tk.BOTTOM, padx=10, pady=0)
-basename_label = tk.Label(control_frame, text="Basename:")
+basename_label = tk.Label(control_frame, text="Filename: _Suffix:")
 basename_label.pack(side=tk.BOTTOM, padx=10, pady=7)
 
 # Create a button to select a folder
