@@ -23,6 +23,7 @@ selected_date = None
 selected_time = None
 text_filter = ""  # Initialize the text filter to an empty string
 timelapse_filename = ""
+selected_fps = 0
 
 # Global variables for "Follow Latest" functionality
 follow_latest_enabled = False
@@ -287,6 +288,10 @@ def create_timelapse(fps=24, target_resolution=(1920, 1080)):
     if not timelapse_filename:
         print("Please set the timelapse filename first.")
         return
+    
+    if not selected_fps:
+        print("Please select the frames per second (fps) first.")
+    return
 
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     out = cv2.VideoWriter(timelapse_filename, fourcc, fps, target_resolution)
@@ -325,6 +330,7 @@ def create_timelapse(fps=24, target_resolution=(1920, 1080)):
         print(f"Timelapse video saved as {timelapse_filename}")
     except Exception as e:
         print(f"An error occurred while creating the timelapse: {e}")
+
 
 # Create a tkinter window
 window = tk.Tk()
@@ -374,6 +380,16 @@ text_input.pack(side=tk.TOP, padx=10, pady=7)
 apply_text_filter_button = tk.Button(control_frame, text="Apply Selection Filters", command=apply_text_filter)
 apply_text_filter_button.pack(side=tk.TOP, padx=10, pady=10)
 
+# Create a label and combo box for selecting the frames per second (fps)
+fps_values = [1,2,5,10,15,24,30,60,90,120]  # Example fps values
+selected_fps = tk.StringVar()
+fps_combobox = ttk.Combobox(control_frame, textvariable=selected_fps, values=fps_values, width=5)
+fps_combobox.set(fps_values[3])  # Set a default value (e.g., 30 fps)
+fps_combobox.pack(side=tk.BOTTOM, padx=10, pady=0)
+fps_combobox['justify'] = 'center'
+
+fps_label = tk.Label(control_frame, text="Frames Per Second (FPS):")
+fps_label.pack(side=tk.BOTTOM, padx=10, pady=0)
 
 # Create a button to set the timelapse filename and export folder
 set_filename_button = tk.Button(control_frame, text="Export Timelapse", command=export_timelapse)
@@ -409,18 +425,19 @@ index_slider.bind("<ButtonRelease-1>", handle_slider_release)
 # Create a label and combo boxes for date and time selection
 date_label = tk.Label(control_frame, text="From Date (YYYY-MM-DD):")
 date_label.pack(side=tk.TOP, padx=10, pady=0)
-selected_date = ttk.Combobox(control_frame)
+selected_date = ttk.Combobox(control_frame,width=12)
 selected_date.pack(side=tk.TOP, padx=10, pady=0)
 selected_date["values"] = [str((datetime.datetime.now() - datetime.timedelta(days=i)).date()) for i in range(7)]
 selected_date.set(str(datetime.date.today()))
+selected_date['justify'] = 'center'
 
 time_label = tk.Label(control_frame, text="From Time (HH:MM):")
 time_label.pack(side=tk.TOP, padx=10, pady=0)
-selected_time = ttk.Combobox(control_frame)
+selected_time = ttk.Combobox(control_frame, width=12)
 selected_time.pack(side=tk.TOP, padx=10, pady=0)
 selected_time["values"] = [str(datetime.time(i, 0).strftime("%H:%M")) for i in range(24)]
 selected_time.set("00:00")
-
+selected_time['justify'] = 'center'
 # Create a button to apply date and time filter
 #apply_filter_button = tk.Button(control_frame, text="Apply Filter", command=show_latest_image)
 #apply_filter_button.pack(side=tk.TOP, padx=10, pady=14)
@@ -442,6 +459,7 @@ if os.path.exists("config.json"):
         selected_time.set(config.get("selected_time", "00:00"))
         text_filter = config.get("text_filter", "")  # Load the text filter
         basename=config.get("basename","")
+        selected_fps=config.get("selected_fps",30)
 
     # Update the text input box with the loaded text filter  
     basename_input.delete(0,tk.END)    
