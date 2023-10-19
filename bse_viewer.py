@@ -19,8 +19,10 @@ import numpy as np
 selected_folder = ""
 filtered_images = []
 current_index = 0
-selected_date = None
-selected_time = None
+from_sel_date = None
+from_sel_time = None
+to_sel_date = None
+to_sel_time = None
 text_filter = ""  # Initialize the text filter to an empty string
 timelapse_filename = ""
 selected_fps = int(0)
@@ -36,8 +38,8 @@ slider_pressed = False
 def save_config():
     config = {
         "selected_folder": selected_folder,
-        "selected_date": selected_date.get(),
-        "selected_time": selected_time.get(),
+        "from_sel_date": from_sel_date.get(),
+        "from_sel_time": from_sel_time.get(),
         "text_filter": text_filter,  # Save the text filter in the configuration
         "basename": basename_input.get().strip(), # Save basenmame from input
         "selected_fps": fps_combobox.get()
@@ -48,7 +50,7 @@ def save_config():
 
 def show_latest_image():
 
-    global current_index, current_image_path, filtered_images, include_overlay
+    global current_index, current_image_path, filtered_images, include_overlay, to_sel_date, to_sel_time
     #print("show_latest_image() executed")
     if selected_folder:
         # Get a list of image files in the selected folder
@@ -66,11 +68,22 @@ def show_latest_image():
             return
 
         # Convert strings to datetime
-        selected_date_str = selected_date.get()
-        selected_time_str = selected_time.get()
-        selected_date_obj = datetime.datetime.strptime(selected_date_str, "%Y-%m-%d").date()
-        selected_time_obj = datetime.datetime.strptime(selected_time_str, "%H:%M").time()
-        selected_datetime = datetime.datetime.combine(selected_date_obj, selected_time_obj)
+        from_sel_date_str = from_sel_date.get()
+        from_sel_time_str = from_sel_time.get()
+        from_sel_date_obj = datetime.datetime.strptime(from_sel_date_str, "%Y-%m-%d").date()
+        from_sel_time_obj = datetime.datetime.strptime(from_sel_time_str, "%H:%M").time()
+        from_sel_datetime = datetime.datetime.combine(from_sel_date_obj, from_sel_time_obj)
+
+        to_sel_date_str = to_sel_date.get()
+        to_sel_time_str = to_sel_time.get()
+
+        if to_sel_date_str.lower() == "now":
+            to_sel_datetime = datetime.datetime.now()
+        else:
+            to_sel_date_obj = datetime.datetime.strptime(to_sel_date_str, "%Y-%m-%d").date()
+            to_sel_time_obj = datetime.datetime.strptime(to_sel_time_str, "%H:%M").time()
+            to_sel_datetime = datetime.datetime.combine(to_sel_date_obj, to_sel_time_obj)            
+
         filtered_images = []
         
 
@@ -81,7 +94,7 @@ def show_latest_image():
             # Check if the image file name contains the text filter
             if text_filter.lower() in image_file.lower():
                 # Also, check if the image datetime is after the selected datetime
-                if image_datetime >= selected_datetime:
+                if to_sel_datetime >= image_datetime >= from_sel_datetime:
                     filtered_images.append(image_path)
       
         print(f"Filtered images images: {len(filtered_images)}")
@@ -179,6 +192,7 @@ def toggle_follow_latest(stop_follow=False):
 def follow_latest_image():
     global after_id,current_index  # Add after_id to the global declaration
     if follow_latest_enabled:
+        set_from_now()
         current_index = 100000000000                               #Set index to something big to show latest image
         show_latest_image()
         print("updating latest")
@@ -238,7 +252,7 @@ def slider_changed(event):
 def export_images():
     global filtered_images, text_filter
     save_config()
-    prefix="layer"
+    prefix="Index"
     filtername=""
     basename = basename_input.get().strip() 
     if filtered_images:
@@ -255,7 +269,7 @@ def export_images():
                 #Replace original filename with basename and datetime if specified
                 if basename:
                     modification_date = os.path.getmtime(image_path)
-                    modification_date_str = datetime.datetime.fromtimestamp(modification_date).strftime("%Y%m%d_%H%M%S%f")
+                    modification_date_str = datetime.datetime.fromtimestamp(modification_date).strftime("%Y%m%d-%H%M%S")
                     image_name_without_extension, extension = os.path.splitext(image_filename)
                     new_filename = f"{modification_date_str}_{basename}{extension}"
                 else:
@@ -375,6 +389,30 @@ def toggle_overlay():
     global include_overlay
     include_overlay = not include_overlay   
 
+# Create a function to be called when "now" is selected
+def to_date_selection(event):
+    global to_sel_date
+    selected_value = to_sel_date.get().lower()  # Convert to lowercase
+    print(selected_value)
+    if selected_value == "now":
+        set_from_now()
+    else:
+        to_sel_date = selected_value
+
+# Create a function to be called when "now" is selected
+def to_time_selection(event):
+    global to_sel_time
+    selected_value = to_sel_time.get().lower()  # Convert to lowercase
+    if selected_value == "now":
+       set_from_now()
+    else:
+        to_sel_time = selected_value
+
+def set_from_now():
+    global to_sel_time, to_sel_date
+    to_sel_date.set("Now")
+    to_sel_time.set("Now")
+
 # Create a tkinter window
 window = tk.Tk()
 window.rowconfigure(0, weight=1)
@@ -420,8 +458,6 @@ text_input_label = tk.Label(control_frame, text="Image Filter:")
 text_input_label.pack(side=tk.TOP, padx=10, pady=0)
 text_input = tk.Entry(control_frame)
 text_input.pack(side=tk.TOP, padx=10, pady=7)
-apply_text_filter_button = tk.Button(control_frame, text="Apply Selection Filters", command=apply_text_filter)
-apply_text_filter_button.pack(side=tk.TOP, padx=10, pady=10)
 
 # Create a checkbox for enabling/disabling the overlay
 overlay_checkbox_var = tk.BooleanVar()
@@ -477,25 +513,48 @@ index_slider.bind("<ButtonPress-1>", handle_slider_click)
 index_slider.bind("<ButtonRelease-1>", handle_slider_release)
 #index_slider.bind("<Motion>", slider_changed_event)
 
-# Create a label and combo boxes for date and time selection
+# *FROM* date and time selection
 date_label = tk.Label(control_frame, text="From Date (YYYY-MM-DD):")
 date_label.pack(side=tk.TOP, padx=10, pady=0)
-selected_date = ttk.Combobox(control_frame,width=12)
-selected_date.pack(side=tk.TOP, padx=10, pady=0)
-selected_date["values"] = [str((datetime.datetime.now() - datetime.timedelta(days=i)).date()) for i in range(7)]
-selected_date.set(str(datetime.date.today()))
-selected_date['justify'] = 'center'
+from_sel_date = ttk.Combobox(control_frame,width=12)
+from_sel_date.pack(side=tk.TOP, padx=10, pady=0)
+from_sel_date["values"] = [str((datetime.datetime.now() - datetime.timedelta(days=i)).date()) for i in range(7)]
+from_sel_date.set(str(datetime.date.today()))
+from_sel_date['justify'] = 'center'
 
-time_label = tk.Label(control_frame, text="From Time (HH:MM):")
-time_label.pack(side=tk.TOP, padx=10, pady=0)
-selected_time = ttk.Combobox(control_frame, width=12)
-selected_time.pack(side=tk.TOP, padx=10, pady=0)
-selected_time["values"] = [str(datetime.time(i, 0).strftime("%H:%M")) for i in range(24)]
-selected_time.set("00:00")
-selected_time['justify'] = 'center'
-# Create a button to apply date and time filter
-#apply_filter_button = tk.Button(control_frame, text="Apply Filter", command=show_latest_image)
-#apply_filter_button.pack(side=tk.TOP, padx=10, pady=14)
+from_time_label = tk.Label(control_frame, text="From Time (HH:MM):")
+from_time_label.pack(side=tk.TOP, padx=10, pady=0)
+from_sel_time = ttk.Combobox(control_frame, width=12)
+from_sel_time.pack(side=tk.TOP, padx=10, pady=0)
+from_sel_time["values"] = [str(datetime.time(i, 0).strftime("%H:%M")) for i in range(24)]
+from_sel_time.set("00:00")
+from_sel_time['justify'] = 'center'
+
+# *TO* date and time selection
+date_label = tk.Label(control_frame, text="To Date (YYYY-MM-DD):")
+date_label.pack(side=tk.TOP, padx=10, pady=0)
+to_sel_date = ttk.Combobox(control_frame,width=12)
+to_sel_date.pack(side=tk.TOP, padx=10, pady=0)
+to_date_values = ["Now"] + [str((datetime.datetime.now() - datetime.timedelta(days=i)).date()) for i in range(7)]
+to_sel_date["values"] = to_date_values
+to_sel_date.set(str(datetime.date.today()))
+to_sel_date['justify'] = 'center'
+
+to_time_label = tk.Label(control_frame, text="To Time (HH:MM):")
+to_time_label.pack(side=tk.TOP, padx=10, pady=0)
+to_sel_time = ttk.Combobox(control_frame, width=12)
+to_sel_time.pack(side=tk.TOP, padx=10, pady=0)
+to_time_values = ["Now"] + [str(datetime.time(i, 0).strftime("%H:%M")) for i in range(24)]
+to_sel_time["values"] = to_time_values
+to_sel_time.set("00:00")
+to_sel_time['justify'] = 'center'
+
+to_sel_date.bind("<<ComboboxSelected>>",to_date_selection)
+to_sel_time.bind("<<ComboboxSelected>>",to_time_selection)
+
+#Apply button 
+apply_text_filter_button = tk.Button(control_frame, text="Apply Selection Filters", command=apply_text_filter)
+apply_text_filter_button.pack(side=tk.TOP, padx=10, pady=20)
 
 # Create navigation buttons with reversed behavior
 next_button = tk.Button(control_frame, text="Next", command=next_image)  # Swap commands
@@ -503,15 +562,15 @@ next_button.pack(side=tk.TOP, padx=10, pady=20)  # Anchored to the bottom with m
 previous_button = tk.Button(control_frame, text="Previous", command=previous_image)  # Swap commands
 previous_button.pack(side=tk.TOP, padx=10, pady=0)  # Anchored to the bottom with margin
 
-image_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp']  # Supported image extensions
+image_extensions = ['.jpg', '.jpeg', '.png', '.bmp']  # Supported image extensions
 
 # Load config
 if os.path.exists("config.json"):
     with open("config.json", "r") as config_file:
         config = json.load(config_file)
         selected_folder = config.get("selected_folder")
-        selected_date.set(config.get("selected_date", str(datetime.date.today())))
-        selected_time.set(config.get("selected_time", "00:00"))
+        from_sel_date.set(config.get("from_sel_date", str(datetime.date.today())))
+        from_sel_time.set(config.get("from_sel_time", "00:00"))
         text_filter = config.get("text_filter", "")  # Load the text filter
         basename=config.get("basename","")
         selected_fps=int(config.get("selected_fps",30))
