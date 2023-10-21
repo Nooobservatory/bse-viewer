@@ -54,6 +54,7 @@ def show_latest_image():
 
     global current_index, current_image_path, filtered_images, include_overlay, to_sel_date, to_sel_time
     #print("show_latest_image() executed")
+
     if selected_folder:
         # Get a list of image files in the selected folder
         image_files = [file for file in os.listdir(selected_folder) if
@@ -139,9 +140,19 @@ def show_latest_image():
         if current_image_path != latest_image_path:
             current_image_path = latest_image_path
 
+        #Calculate thumbnail size
+        image_frame_width = image_frame.winfo_width()
+        image_frame_height = image_frame.winfo_height()
+        print(f"Frame size - Width: {image_frame_width}, Height: {image_frame_height}")
+        
+        if image_frame_height <= image_frame_width:
+            thumbnail_size = image_frame_height*1.49
+        else:
+            thumbnail_size = image_frame_width*1
+
         # Display the latest image using tkinter
         image = Image.open(latest_image_path)
-        image.thumbnail((1000, 1000))  # Resize the image if it's too large
+        image.thumbnail((thumbnail_size,thumbnail_size))  # Resize the image if it's too large
         photo = ImageTk.PhotoImage(image)
         label.config(image=photo)
         label.photo = photo
@@ -437,14 +448,14 @@ root.title("BSE Image Viewer")
 # Create a frame to hold the control buttons
 control_frame = tk.Frame(root)
 control_frame.pack(side=tk.LEFT, padx=(border_pading,5), pady=0)
-control_frame.configure(bg="light green")
+#control_frame.configure(bg="light green")
 
 
 
 # Create a frame to hold the control buttons and image information 
 image_control_frame = tk.Frame(root)
-image_control_frame.pack(side=tk.BOTTOM, padx=(0,border_pading), pady=(0,border_pading))
-image_control_frame.configure(bg="light blue")
+image_control_frame.pack(side=tk.BOTTOM, padx=(0,border_pading), pady=(5,border_pading))
+#image_control_frame.configure(bg="light blue")
 # Configure the row and column to expand when the window is resized
 image_control_frame.grid_rowconfigure(1, weight=1)
 image_control_frame.grid_columnconfigure(0, weight=1)
@@ -453,7 +464,7 @@ image_control_frame.grid_columnconfigure(0, weight=1)
 
 # Create a frame to hold image and information
 image_frame = tk.Frame(root)
-image_frame.pack(fill=tk.BOTH, expand=True, padx=(0,border_pading), pady=(0,0))
+image_frame.pack(fill=tk.BOTH, expand=True, padx=(0,border_pading), pady=(border_pading,0))
 image_frame.configure(bg="dark grey")
 #image_control_frame.grid_rowconfigure(1, weight=1)
 #image_control_frame.grid_columnconfigure(0, weight=1)
@@ -463,7 +474,7 @@ image_frame.configure(bg="dark grey")
 
 # Create a label to display the image
 label = tk.Label(image_frame)
-label.pack(pady=10)
+label.pack(side=tk.LEFT)
 
 #-------------------------------- Create Lower control frame content ----------------------------------------#
 
