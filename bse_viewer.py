@@ -40,6 +40,8 @@ def save_config():
         "selected_folder": selected_folder,
         "from_sel_date": from_sel_date.get(),
         "from_sel_time": from_sel_time.get(),
+        "to_sel_date": to_sel_date.get(),
+        "to_sel_time": to_sel_time.get(),
         "text_filter": text_filter,  # Save the text filter in the configuration
         "basename": basename_input.get().strip(), # Save basenmame from input
         "selected_fps": fps_combobox.get()
@@ -78,11 +80,16 @@ def show_latest_image():
         to_sel_time_str = to_sel_time.get()
 
         if to_sel_date_str.lower() == "now":
-            to_sel_datetime = datetime.datetime.now()
+            to_sel_date_obj = datetime.date.today()
         else:
             to_sel_date_obj = datetime.datetime.strptime(to_sel_date_str, "%Y-%m-%d").date()
+        
+        if to_sel_time_str.lower() == "now":  
+            to_sel_time_obj = datetime.datetime.now().time()
+        else:
             to_sel_time_obj = datetime.datetime.strptime(to_sel_time_str, "%H:%M").time()
-            to_sel_datetime = datetime.datetime.combine(to_sel_date_obj, to_sel_time_obj)            
+
+        to_sel_datetime = datetime.datetime.combine(to_sel_date_obj, to_sel_time_obj)            
 
         filtered_images = []
         
@@ -396,8 +403,6 @@ def to_date_selection(event):
     print(selected_value)
     if selected_value == "now":
         set_from_now()
-    else:
-        to_sel_date = selected_value
 
 # Create a function to be called when "now" is selected
 def to_time_selection(event):
@@ -405,8 +410,6 @@ def to_time_selection(event):
     selected_value = to_sel_time.get().lower()  # Convert to lowercase
     if selected_value == "now":
        set_from_now()
-    else:
-        to_sel_time = selected_value
 
 def set_from_now():
     global to_sel_time, to_sel_date
@@ -571,6 +574,8 @@ if os.path.exists("config.json"):
         selected_folder = config.get("selected_folder")
         from_sel_date.set(config.get("from_sel_date", str(datetime.date.today())))
         from_sel_time.set(config.get("from_sel_time", "00:00"))
+        to_sel_date.set(config.get("to_sel_date","Now")),
+        to_sel_time.set(config.get("to_sel_time","Now")),
         text_filter = config.get("text_filter", "")  # Load the text filter
         basename=config.get("basename","")
         selected_fps=int(config.get("selected_fps",30))
