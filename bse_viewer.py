@@ -190,7 +190,7 @@ def toggle_follow_latest(stop_follow=False):
         index_slider.set(current_index+1)
 
     else:
-        follow_latest_button.config(text="Follow Latest Layer", bg="#DCDCDC")
+        follow_latest_button.config(text="Follow Latest", bg="#DCDCDC")
         follow_latest_enabled = False
         if after_id:
             root.after_cancel(after_id)  # Cancel the scheduled updates
@@ -424,29 +424,40 @@ def set_from_now():
 
 #---------------------------------------- Setup root window --------------------------------------------------#
 
+#Placement parameters
+border_pading = 5
+
+
 # Create Main window
 root = tk.Tk()
-root.rowconfigure(0, weight=1)
-root.columnconfigure(0, weight=1)
 root.title("BSE Image Viewer")
 
 #test = tk.Tk()
 
 # Create a frame to hold the control buttons
 control_frame = tk.Frame(root)
-control_frame.pack(side=tk.LEFT, padx=10, pady=10)
+control_frame.pack(side=tk.LEFT, padx=(border_pading,5), pady=0)
+control_frame.configure(bg="light green")
 
-# Create a frame to hold the control buttons
-control_frame = tk.Frame(root)
-control_frame.pack(side=tk.LEFT, padx=10, pady=10)
+
 
 # Create a frame to hold the control buttons and image information 
 image_control_frame = tk.Frame(root)
-image_control_frame.pack(side=tk.BOTTOM, padx=10, pady=10)
+image_control_frame.pack(side=tk.BOTTOM, padx=(0,border_pading), pady=(0,border_pading))
+image_control_frame.configure(bg="light blue")
+# Configure the row and column to expand when the window is resized
+image_control_frame.grid_rowconfigure(1, weight=1)
+image_control_frame.grid_columnconfigure(0, weight=1)
+
+
 
 # Create a frame to hold image and information
 image_frame = tk.Frame(root)
-image_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+image_frame.pack(fill=tk.BOTH, expand=True, padx=(0,border_pading), pady=(0,0))
+image_frame.configure(bg="dark grey")
+#image_control_frame.grid_rowconfigure(1, weight=1)
+#image_control_frame.grid_columnconfigure(0, weight=1)
+
 
 #---------------------------------- Create image frame content ----------------------------------------------#
 
@@ -455,31 +466,39 @@ label = tk.Label(image_frame)
 label.pack(pady=10)
 
 #-------------------------------- Create Lower control frame content ----------------------------------------#
-# Create a label to display the date and time of the image
-date_time_label = tk.Label(image_control_frame, text="Filename:  Date Time:", font=("TkDefaultFont", 14))
-date_time_label.pack(side=tk.BOTTOM, padx=10, pady=10)
 
-# Create a label with the default font
-folder_label = tk.Label(image_control_frame, text="Selected Folder:", font=("TkDefaultFont", 9))  # Change font here
-folder_label.pack(side=tk.BOTTOM, padx=10, pady=10)
+# Create navigation buttons next, prev
+previous_button = tk.Button(image_control_frame, text="Previous",width=8, height=1, command=previous_image)
+previous_button.grid(row=0, column=0, padx=0, pady=0)
+
+next_button = tk.Button(image_control_frame, text="Next",width=8,height=1, command=next_image)
+next_button.grid(row=0, column=0, padx=(150,0), pady=0)
 
 # Create a button to toggle "Follow Latest" mode
-follow_latest_button = tk.Button(image_control_frame, text="Follow Latest Layer", width=16, height=1, command=toggle_follow_latest)
-follow_latest_button.pack(side=tk.BOTTOM, padx=10, pady=10)
+follow_latest_button = tk.Button(image_control_frame, text="Follow Latest", width=16, height=1, command=toggle_follow_latest)
+follow_latest_button.grid(row=0, column=0, padx=(500,0), pady=0)
 
 # Create a scale widget to set the current index
-index_slider = Scale(image_control_frame, from_=0, to=100, orient="horizontal", label="Select Index", length=400, command=slider_changed)
-index_slider.pack(side=tk.BOTTOM, padx=10, pady=10)
+index_slider = Scale(image_control_frame, from_=0, to=100, orient="horizontal", length=1000, command=slider_changed)
+index_slider.grid(row=1, column=0, sticky="ew", padx=0, pady=0)
 
 # Bind the functions to the slider events
 index_slider.bind("<ButtonPress-1>", handle_slider_click)
 index_slider.bind("<ButtonRelease-1>", handle_slider_release)
 
-# Create navigation buttons next, prev
-next_button = tk.Button(image_control_frame, text="Next", command=next_image)  # Swap commands
-next_button.pack(side=tk.TOP, padx=10, pady=20)  # Anchored to the bottom with margin
-previous_button = tk.Button(image_control_frame, text="Previous", command=previous_image)  # Swap commands
-previous_button.pack(side=tk.TOP, padx=10, pady=0)  # Anchored to the bottom with margin
+# Create a label to display the date and time of the image
+date_time_label = tk.Label(image_control_frame, text="Filename:  Date Time:", font=("TkDefaultFont", 14))
+date_time_label.grid(row=2, column=0, columnspan=2, padx=10, pady=0)
+
+# Create a label with the default font
+folder_label = tk.Label(image_control_frame, text="Selected Folder:", font=("TkDefaultFont", 9))
+folder_label.grid(row=3, column=0, columnspan=2, padx=10, pady=0)
+
+
+
+
+
+
 
 #-------------------------------- Create Left control frame content -----------------------------------------#
 # Create a label and entry for text input
