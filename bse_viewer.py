@@ -193,7 +193,7 @@ def toggle_follow_latest(stop_follow=False):
         follow_latest_button.config(text="Follow Latest Layer", bg="#DCDCDC")
         follow_latest_enabled = False
         if after_id:
-            window.after_cancel(after_id)  # Cancel the scheduled updates
+            root.after_cancel(after_id)  # Cancel the scheduled updates
 
 
 def follow_latest_image():
@@ -203,30 +203,30 @@ def follow_latest_image():
         current_index = 100000000000                               #Set index to something big to show latest image
         show_latest_image()
         print("updating latest")
-        after_id = window.after(1000, follow_latest_image)  # Assign the after ID
+        after_id = root.after(1000, follow_latest_image)  # Assign the after ID
 
 
 def next_image():
     global current_index, after_id  # Add after_id to the global declaration
     if current_index is not None:
-        current_index += 1  # Reversed behavior for the next button
+        current_index += 1 
         #index_slider.set(current_index)
         print("next pressed")
         toggle_follow_latest(True)
         show_latest_image()
         index_slider.set(current_index+1)
         if after_id:
-            window.after_cancel(after_id)  # Cancel the scheduled updates
+            root.after_cancel(after_id)  # Cancel the scheduled updates
 
 def previous_image():
     global current_index, after_id  # Add after_id to the global declaration
     if current_index is not None:
-        current_index -= 1  # Reversed behavior for the previous button
+        current_index -= 1  
         toggle_follow_latest(True)
         show_latest_image()
         index_slider.set(current_index+1)
         if after_id:
-            window.after_cancel(after_id)  # Cancel the scheduled updates
+            root.after_cancel(after_id)  # Cancel the scheduled updates
 
 # Function to handle slider changes when the mouse is pressed
 def handle_slider_click(event):
@@ -253,7 +253,7 @@ def slider_changed(event):
         print(f"slider value:{current_index}")
         show_latest_image()
         if after_id:
-            window.after_cancel(after_id)  # Cancel the scheduled updates
+            root.after_cancel(after_id)  # Cancel the scheduled updates
 
 # Function to export filtered images
 def export_images():
@@ -416,46 +416,72 @@ def set_from_now():
     to_sel_date.set("Now")
     to_sel_time.set("Now")
 
-# Create a tkinter window
-window = tk.Tk()
-window.rowconfigure(0, weight=1)
-window.columnconfigure(0, weight=1)
-window.title("BSE Image Viewer")
+
+#*************************************************************************************************************#
+#****************************************     GUI     ********************************************************#
+#*************************************************************************************************************#
 
 
-ctrl_window = tk.Tk()
-window.title("Controls")
+#---------------------------------------- Setup root window --------------------------------------------------#
 
-# Create a label to display the image
-label = tk.Label(window)
-label.pack(pady=10)
+# Create Main window
+root = tk.Tk()
+root.rowconfigure(0, weight=1)
+root.columnconfigure(0, weight=1)
+root.title("BSE Image Viewer")
+
+#test = tk.Tk()
 
 # Create a frame to hold the control buttons
-control_frame = tk.Frame(ctrl_window)
-control_frame.pack(side=tk.TOP, padx=10, pady=10)
+control_frame = tk.Frame(root)
+control_frame.pack(side=tk.LEFT, padx=10, pady=10)
 
-#----------------------------------------------------------------------------------------------------------------#
+# Create a frame to hold the control buttons
+control_frame = tk.Frame(root)
+control_frame.pack(side=tk.LEFT, padx=10, pady=10)
+
+# Create a frame to hold the control buttons and image information 
+image_control_frame = tk.Frame(root)
+image_control_frame.pack(side=tk.BOTTOM, padx=10, pady=10)
 
 # Create a frame to hold image and information
-image_frame = tk.Frame(window)
+image_frame = tk.Frame(root)
 image_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-# Create another frame inside image_frame for resizing
-#inner_image_frame = tk.Frame(image_frame)
-#inner_image_frame.pack(fill=tk.BOTH, expand=True)
+#---------------------------------- Create image frame content ----------------------------------------------#
 
-# Prevent automatic resizing of inner_image_frame
-#inner_image_frame.pack_propagate(False)
+# Create a label to display the image
+label = tk.Label(image_frame)
+label.pack(pady=10)
 
-
+#-------------------------------- Create Lower control frame content ----------------------------------------#
 # Create a label to display the date and time of the image
-date_time_label = tk.Label(window, text="Filename:  Date Time:", font=("TkDefaultFont", 14))
+date_time_label = tk.Label(image_control_frame, text="Filename:  Date Time:", font=("TkDefaultFont", 14))
 date_time_label.pack(side=tk.BOTTOM, padx=10, pady=10)
 
 # Create a label with the default font
-folder_label = tk.Label(window, text="Selected Folder:", font=("TkDefaultFont", 9))  # Change font here
+folder_label = tk.Label(image_control_frame, text="Selected Folder:", font=("TkDefaultFont", 9))  # Change font here
 folder_label.pack(side=tk.BOTTOM, padx=10, pady=10)
 
+# Create a button to toggle "Follow Latest" mode
+follow_latest_button = tk.Button(image_control_frame, text="Follow Latest Layer", width=16, height=1, command=toggle_follow_latest)
+follow_latest_button.pack(side=tk.BOTTOM, padx=10, pady=10)
+
+# Create a scale widget to set the current index
+index_slider = Scale(image_control_frame, from_=0, to=100, orient="horizontal", label="Select Index", length=400, command=slider_changed)
+index_slider.pack(side=tk.BOTTOM, padx=10, pady=10)
+
+# Bind the functions to the slider events
+index_slider.bind("<ButtonPress-1>", handle_slider_click)
+index_slider.bind("<ButtonRelease-1>", handle_slider_release)
+
+# Create navigation buttons next, prev
+next_button = tk.Button(image_control_frame, text="Next", command=next_image)  # Swap commands
+next_button.pack(side=tk.TOP, padx=10, pady=20)  # Anchored to the bottom with margin
+previous_button = tk.Button(image_control_frame, text="Previous", command=previous_image)  # Swap commands
+previous_button.pack(side=tk.TOP, padx=10, pady=0)  # Anchored to the bottom with margin
+
+#-------------------------------- Create Left control frame content -----------------------------------------#
 # Create a label and entry for text input
 text_input_label = tk.Label(control_frame, text="Image Filter:")
 text_input_label.pack(side=tk.TOP, padx=10, pady=0)
@@ -481,7 +507,6 @@ fps_combobox['justify'] = 'center'
 fps_combobox.bind("<Return>", get_selected_fps)
 fps_combobox.bind("<<ComboboxSelected>>", get_selected_fps)
 
-
 fps_label = tk.Label(control_frame, text="Frames Per Second (FPS):")
 fps_label.pack(side=tk.BOTTOM, padx=10, pady=0)
 
@@ -503,18 +528,7 @@ basename_label.pack(side=tk.BOTTOM, padx=10, pady=7)
 select_folder_button = tk.Button(control_frame, text="Select Folder", command=select_folder)
 select_folder_button.pack(side=tk.BOTTOM, padx=10, pady=40)  # Anchored to the bottom with margin
 
-# Create a button to toggle "Follow Latest" mode
-follow_latest_button = tk.Button(control_frame, text="Follow Latest Layer", width=16, height=1, command=toggle_follow_latest)
-follow_latest_button.pack(side=tk.BOTTOM, padx=10, pady=10)
 
-# Create a scale widget to set the current index
-index_slider = Scale(control_frame, from_=0, to=100, orient="horizontal", label="Select Index", length=400, command=slider_changed)
-index_slider.pack(side=tk.BOTTOM, padx=10, pady=10)
-
-# Bind the functions to the slider events
-index_slider.bind("<ButtonPress-1>", handle_slider_click)
-index_slider.bind("<ButtonRelease-1>", handle_slider_release)
-#index_slider.bind("<Motion>", slider_changed_event)
 
 # *FROM* date and time selection
 date_label = tk.Label(control_frame, text="From Date (YYYY-MM-DD):")
@@ -559,12 +573,10 @@ to_sel_time.bind("<<ComboboxSelected>>",to_time_selection)
 apply_text_filter_button = tk.Button(control_frame, text="Apply Selection Filters", command=apply_text_filter)
 apply_text_filter_button.pack(side=tk.TOP, padx=10, pady=20)
 
-# Create navigation buttons with reversed behavior
-next_button = tk.Button(control_frame, text="Next", command=next_image)  # Swap commands
-next_button.pack(side=tk.TOP, padx=10, pady=20)  # Anchored to the bottom with margin
-previous_button = tk.Button(control_frame, text="Previous", command=previous_image)  # Swap commands
-previous_button.pack(side=tk.TOP, padx=10, pady=0)  # Anchored to the bottom with margin
 
+
+
+#---------------------------------- Configure GUI ----------------------------------------------#
 image_extensions = ['.jpg', '.jpeg', '.png', '.bmp']  # Supported image extensions
 
 # Load config
@@ -595,4 +607,4 @@ folder_label.config(text=f"Selected Folder: {selected_folder}")
 show_latest_image()
 calculate_timelapse_duration()
 # Run the tkinter main loop
-window.mainloop()
+root.mainloop()
