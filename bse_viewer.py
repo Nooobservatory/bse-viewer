@@ -465,7 +465,7 @@ image_control_frame.grid_columnconfigure(0, weight=1)
 # Create a frame to hold image and information
 image_frame = tk.Frame(root)
 image_frame.pack(fill=tk.BOTH, expand=True, padx=(0,border_pading), pady=(border_pading,0))
-image_frame.configure(bg="dark grey")
+#image_frame.configure(bg="dark grey")
 #image_control_frame.grid_rowconfigure(1, weight=1)
 #image_control_frame.grid_columnconfigure(0, weight=1)
 
@@ -474,7 +474,7 @@ image_frame.configure(bg="dark grey")
 
 # Create a label to display the image
 label = tk.Label(image_frame)
-label.pack(side=tk.LEFT)
+label.pack(side=tk.BOTTOM)
 
 #-------------------------------- Create Lower control frame content ----------------------------------------#
 
@@ -504,11 +504,6 @@ date_time_label.grid(row=2, column=0, columnspan=2, padx=10, pady=0)
 # Create a label with the default font
 folder_label = tk.Label(image_control_frame, text="Selected Folder:", font=("TkDefaultFont", 9))
 folder_label.grid(row=3, column=0, columnspan=2, padx=10, pady=0)
-
-
-
-
-
 
 
 #-------------------------------- Create Left control frame content -----------------------------------------#
