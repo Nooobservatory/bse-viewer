@@ -8,6 +8,9 @@ import json
 import shutil
 import cv2
 import numpy as np
+import subprocess
+
+import inspection_window
 
 # Author: Martin Svensson / Nooobservatory
 # Version: 0.12.2-alhpa
@@ -443,6 +446,11 @@ def sort_by_selection(event):
         print(f"{selected_value} is not a valid sort cirteria")
         sort_by.set("Modification Date")
         
+def launch_inspection_window():
+    global filtered_images, current_index
+    
+    if len(filtered_images):
+        inspection_window.run_image_viewer(filtered_images[current_index])
 
 #*************************************************************************************************************#
 #****************************************     GUI     ********************************************************#
@@ -470,12 +478,16 @@ control_frame.pack(side=tk.LEFT, padx=(border_pading,5), pady=0)
 
 # Create a frame to hold the control buttons and image information 
 image_control_frame = tk.Frame(root)
-image_control_frame.pack(side=tk.BOTTOM, padx=(0,border_pading), pady=(5,border_pading))
-#image_control_frame.configure(bg="light blue")
+image_control_frame.pack(side=tk.BOTTOM, padx=(0,border_pading), pady=(0,border_pading))
+
+image_control_frame2 = tk.Frame(root)
+image_control_frame2.pack(side=tk.BOTTOM, padx=(0,border_pading), pady=(5,0))
+#image_control_frame2.configure(bg="light blue")
+
 # Configure the row and column to expand when the window is resized
 image_control_frame.grid_rowconfigure(1, weight=1)
 image_control_frame.grid_columnconfigure(0, weight=1)
-
+#image_control_frame.configure(bg="light grey")
 
 
 # Create a frame to hold image and information
@@ -492,19 +504,23 @@ image_frame.pack(fill=tk.BOTH, expand=True, padx=(0,border_pading), pady=(border
 label = tk.Label(image_frame)
 label.pack(side=tk.BOTTOM)
 
-#-------------------------------- Create Lower control frame content ----------------------------------------#
+#-------------------------------- Create Lower control frame 2 content ----------------------------------------#
+#create button for insepction window
+open_other_script_button = tk.Button(image_control_frame2, text="Inspection Window", command=launch_inspection_window)
+open_other_script_button.pack(side=tk.LEFT,padx=(10,90))
 
 # Create navigation buttons next, prev
-previous_button = tk.Button(image_control_frame, text="Previous",width=8, height=1, command=previous_image)
-previous_button.grid(row=0, column=0, padx=0, pady=0)
+previous_button = tk.Button(image_control_frame2, text="Previous",width=8, height=1, command=previous_image)
+previous_button.pack(side=tk.LEFT,padx=(10,10))
 
-next_button = tk.Button(image_control_frame, text="Next",width=8,height=1, command=next_image)
-next_button.grid(row=0, column=0, padx=(150,0), pady=0)
+next_button = tk.Button(image_control_frame2, text="Next",width=8,height=1, command=next_image)
+next_button.pack(side=tk.LEFT,padx=(10,10))
 
 # Create a button to toggle "Follow Latest" mode
-follow_latest_button = tk.Button(image_control_frame, text="Follow Latest", width=16, height=1, command=toggle_follow_latest)
-follow_latest_button.grid(row=0, column=0, padx=(500,0), pady=0)
+follow_latest_button = tk.Button(image_control_frame2, text="Follow Latest", width=16, height=1, command=toggle_follow_latest)
+follow_latest_button.pack(side=tk.LEFT,padx=(90,10))
 
+#-------------------------------- Create Lower control frame content ----------------------------------------#
 # Create a scale widget to set the current index
 index_slider = Scale(image_control_frame, from_=0, to=100, orient="horizontal", length=1000, command=slider_changed)
 index_slider.grid(row=1, column=0, sticky="ew", padx=0, pady=0)
@@ -520,6 +536,8 @@ date_time_label.grid(row=2, column=0, columnspan=2, padx=10, pady=0)
 # Create a label with the default font
 folder_label = tk.Label(image_control_frame, text="Selected Folder:", font=("TkDefaultFont", 9))
 folder_label.grid(row=3, column=0, columnspan=2, padx=10, pady=0)
+
+
 
 
 #-------------------------------- Create Left control frame content -----------------------------------------#
