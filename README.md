@@ -1,10 +1,24 @@
-# bse-viewer
-This is a basic image viewing software that shows bse images in seqence based on the filename date. 
+# BSE Image Viewer
 
--Viewing filters datetime and "string" can be applied to show a specific set of images.
--Files can be exported as timelapse or as images to a spedified catalog
+The **BSE Image Viewer** is a lightweight software designed for viewing backscattered electron (BSE) images in sequence based on the filename date. It offers various features to help you efficiently explore your image collection.
 
-Make sure that required libraries are installed before running software. 
+## Features
 
-Install requirements by running: 
-$ pip install -r requirements.txt 
+### 1. Viewing Filters
+
+The software allows you to apply filters based on datetime and specific strings in filenames. This feature enables you to narrow down your image selection and focus on specific images within your collection.
+
+### 2. Export Options
+
+The **BSE Image Viewer** provides two convenient export options:
+
+- **Timelapse:** Create timelapse videos from your selected images.
+- **Images:** Export images to a specified directory for further analysis or sharing.
+
+## Getting Started
+
+Before running the software, make sure you have the required libraries installed. You can install these libraries by running the following command:
+
+```shell
+$ pip install -r requirements.txt
+
