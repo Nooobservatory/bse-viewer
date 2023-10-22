@@ -23,6 +23,7 @@ from_sel_date = None
 from_sel_time = None
 to_sel_date = None
 to_sel_time = None
+sort_by = None
 text_filter = ""  # Initialize the text filter to an empty string
 timelapse_filename = ""
 selected_fps = int(0)
@@ -43,8 +44,10 @@ def save_config():
         "to_sel_date": to_sel_date.get(),
         "to_sel_time": to_sel_time.get(),
         "text_filter": text_filter,  # Save the text filter in the configuration
-        "basename": basename_input.get().strip(), # Save basenmame from input
-        "selected_fps": fps_combobox.get()
+        "suffix": basename_input.get().strip(), # Save basenmame from input
+        "prefix" : prefix_input.get(),
+        "selected_fps": fps_combobox.get(),
+        "sort_by": sort_by.get()
     }
     with open("config.json", "w") as config_file:
         json.dump(config, config_file)
@@ -270,7 +273,7 @@ def slider_changed(event):
 def export_images():
     global filtered_images, text_filter
     save_config()
-    prefix="Index"
+    prefix=prefix_input.get().strip()
     filtername=""
     basename = basename_input.get().strip() 
     if filtered_images:
@@ -427,6 +430,19 @@ def set_from_now():
     to_sel_date.set("Now")
     to_sel_time.set("Now")
 
+# Create a function to be called when "now" is selected
+def sort_by_selection(event):
+    global sort_by
+    selected_value = sort_by.get().lower()  # Convert to lowercase
+    print(selected_value)
+    if selected_value == "Modification Date".lower():
+       save_config()
+    elif selected_value == "Name:YYYYMMDD-HHMMSS".lower():
+        save_config()
+    else:
+        print(f"{selected_value} is not a valid sort cirteria")
+        sort_by.set("Modification Date")
+        
 
 #*************************************************************************************************************#
 #****************************************     GUI     ********************************************************#
@@ -508,10 +524,25 @@ folder_label.grid(row=3, column=0, columnspan=2, padx=10, pady=0)
 
 #-------------------------------- Create Left control frame content -----------------------------------------#
 # Create a label and entry for text input
+text_input_label = tk.Label(control_frame, text="Sort by:")
+text_input_label.pack(side=tk.TOP, padx=10, pady=(5,0))
+
+sort_by = ttk.Combobox(control_frame, width=24, font=("TkDefaultFont", 8))
+sort_by.pack(side=tk.TOP, padx=0, pady=(0,5))
+
+sort_by_values = ["Modification Date", "Name:YYYYMMDD-HHMMSS"]
+sort_by["values"] = sort_by_values
+sort_by.set(sort_by_values[1])
+sort_by['justify'] = 'center'
+
+sort_by.bind("<<ComboboxSelected>>", sort_by_selection)
+sort_by.bind("<Return>", sort_by_selection)
+
+# Create a label and entry for text input
 text_input_label = tk.Label(control_frame, text="Image Filter:")
 text_input_label.pack(side=tk.TOP, padx=10, pady=0)
 text_input = tk.Entry(control_frame)
-text_input.pack(side=tk.TOP, padx=10, pady=7)
+text_input.pack(side=tk.TOP, padx=10, pady=0)
 
 # Create a checkbox for enabling/disabling the overlay
 overlay_checkbox_var = tk.BooleanVar()
@@ -547,17 +578,21 @@ export_button.pack(side=tk.BOTTOM, padx=10, pady=10)
 basename_input = tk.Entry(control_frame)
 basename_input.pack(side=tk.BOTTOM, padx=10, pady=0)
 basename_label = tk.Label(control_frame, text="Filename: _Suffix:")
-basename_label.pack(side=tk.BOTTOM, padx=10, pady=7)
+basename_label.pack(side=tk.BOTTOM, padx=0, pady=0)
+
+# Add index a prefix entry widget
+prefix_input = tk.Entry(control_frame)
+prefix_input.pack(side=tk.BOTTOM, padx=10, pady=0)
+prefix_label = tk.Label(control_frame, text="Filename: _Prefix:")
+prefix_label.pack(side=tk.BOTTOM, padx=0, pady=0)
 
 # Create a button to select a folder
 select_folder_button = tk.Button(control_frame, text="Select Folder", command=select_folder)
 select_folder_button.pack(side=tk.BOTTOM, padx=10, pady=40)  # Anchored to the bottom with margin
 
-
-
 # *FROM* date and time selection
 date_label = tk.Label(control_frame, text="From Date (YYYY-MM-DD):")
-date_label.pack(side=tk.TOP, padx=10, pady=0)
+date_label.pack(side=tk.TOP, padx=10, pady=(5,0))
 from_sel_date = ttk.Combobox(control_frame,width=12)
 from_sel_date.pack(side=tk.TOP, padx=10, pady=0)
 from_sel_date["values"] = [str((datetime.datetime.now() - datetime.timedelta(days=i)).date()) for i in range(7)]
@@ -598,9 +633,6 @@ to_sel_time.bind("<<ComboboxSelected>>",to_time_selection)
 apply_text_filter_button = tk.Button(control_frame, text="Apply Selection Filters", command=apply_text_filter)
 apply_text_filter_button.pack(side=tk.TOP, padx=10, pady=20)
 
-
-
-
 #---------------------------------- Configure GUI ----------------------------------------------#
 image_extensions = ['.jpg', '.jpeg', '.png', '.bmp']  # Supported image extensions
 
@@ -611,19 +643,21 @@ if os.path.exists("config.json"):
         selected_folder = config.get("selected_folder")
         from_sel_date.set(config.get("from_sel_date", str(datetime.date.today())))
         from_sel_time.set(config.get("from_sel_time", "00:00"))
-        to_sel_date.set(config.get("to_sel_date","Now")),
-        to_sel_time.set(config.get("to_sel_time","Now")),
-        text_filter = config.get("text_filter", "")  # Load the text filter
-        basename=config.get("basename","")
-        selected_fps=int(config.get("selected_fps",30))
-
+        to_sel_date.set(config.get("to_sel_date","Now"))
+        to_sel_time.set(config.get("to_sel_time","Now"))
+        text_filter = config.get("text_filter", "")
+        basename = config.get("suffix","")
+        prefix = config.get("prefix","")
+        selected_fps = int(config.get("selected_fps",30))
+        sort_by.set(config.get("sort_by","Modification Date"))
 
     #update fps combobox
     fps_combobox.set(selected_fps)
-    # Update the text input box with the loaded text filter  
+    # Update the text input boxes
     basename_input.delete(0,tk.END)    
     basename_input.insert(0, basename) 
-    # Update the text input box with the loaded text filter
+    prefix_input.delete(0,tk.END)    
+    prefix_input.insert(0, basename) 
     text_input.delete(0, tk.END)  # Clear the current text in the input box
     text_input.insert(0, text_filter)  # Insert the loaded text filter
 
