@@ -464,7 +464,7 @@ root.title("BSE Image Viewer")
 # Create a frame to hold the control buttons
 control_frame = tk.Frame(root)
 control_frame.pack(side=tk.LEFT, padx=(border_pading,5), pady=0)
-#control_frame.configure(bg="light green")
+#gicontrol_frame.configure(bg="light green")
 
 
 
