@@ -8,7 +8,6 @@ import json
 import shutil
 import cv2
 import numpy as np
-import subprocess
 
 import inspection_window
 
@@ -31,6 +30,7 @@ text_filter = ""  # Initialize the text filter to an empty string
 timelapse_filename = ""
 selected_fps = int(0)
 include_overlay = False
+crop_factor = 1.0
 
 # Global variables for "Follow Latest" functionality
 follow_latest_enabled = False
@@ -58,7 +58,7 @@ def save_config():
 
 def show_latest_image():
 
-    global current_index, current_image_path, filtered_images, include_overlay, to_sel_date, to_sel_time
+    global current_index, current_image_path, filtered_images, include_overlay, to_sel_date, to_sel_time, crop_factor
     #print("show_latest_image() executed")
 
     if selected_folder:
@@ -143,36 +143,101 @@ def show_latest_image():
         latest_image_path = filtered_images[current_index]
 
         #Check if current image shown is the same as latest filtered. Add image processing call here:
-        if current_image_path != latest_image_path:
-            current_image_path = latest_image_path
+        current_image_path = latest_image_path
 
-        #Calculate thumbnail size
-        image_frame_width = image_frame.winfo_width()
-        image_frame_height = image_frame.winfo_height()
-        print(f"Frame size - Width: {image_frame_width}, Height: {image_frame_height}")
-        
-        if image_frame_height <= image_frame_width:
-            thumbnail_size = image_frame_height*1.49
-        else:
-            thumbnail_size = image_frame_width*1
+        # Calculate thumbnail size to fit within 'image_frame' while preserving the aspect ratio
+        frame_width = image_frame.winfo_width()
+        frame_height = image_frame.winfo_height()
+        print(f"Frame size - Width: {frame_width}, Height: {frame_height}")
 
-        # Display the latest image using tkinter
-        image = Image.open(latest_image_path)
-        image.thumbnail((thumbnail_size,thumbnail_size))  # Resize the image if it's too large
-        photo = ImageTk.PhotoImage(image)
-        label.config(image=photo)
-        label.photo = photo
-        label.pack()
+        try:
+
+            if crop_factor != 1:
+                image = crop_square_center_origin(latest_image_path, crop_factor)
+            else:
+                # Load the image
+                image = Image.open(latest_image_path)
+            
+            image_width, image_height = image.size
+
+            # Check if the image dimensions are valid
+            if image_width > 0 and image_height > 0:
+                # Calculate the aspect ratio
+                width_ratio = frame_width / image_width
+                height_ratio = frame_height / image_height
+
+                # Choose the maximum ratio to fit the image within the frame, upscaling if necessary
+                max_ratio = max(width_ratio, height_ratio)
+
+                # Define a minimum size for the image (adjust as needed)
+                min_image_size = (frame_width, frame_height)
+                print(f"Image size - Width: {image_width}, Height: {image_height}")
+                print(f"max ratio: {max_ratio}")
+
+                if max_ratio <= 1.0:
+                    print("upscaling image")
+                    # Upscale the image to meet the minimum size
+                    image.thumbnail(min_image_size)
+                elif max_ratio > 1.0:
+                    # Calculate the aspect ratio to maintain the original proportions
+                    aspect_ratio = image_width / image_height
+
+                    # Calculate new dimensions to meet the minimum size while preserving the aspect ratio
+                    min_width, min_height = min_image_size
+                    if min_width / aspect_ratio <= min_height:
+                        new_width = min_width
+                        new_height = int(new_width / aspect_ratio)
+                    else:
+                        new_height = min_height
+                        new_width = int(new_height * aspect_ratio)
+
+                    # Resize the image with the new dimensions
+                    image = image.resize((new_width, new_height))
+
+
+                # Create a PhotoImage and display it in a Label
+                photo = ImageTk.PhotoImage(image)
+                label.config(image=photo)
+                label.photo = photo  # Keep a reference to avoid garbage collection
+                label.pack(fill='both', expand='yes')  # Ensure the label fills the frame
+            else:
+                print("Invalid image dimensions: Width or height is zero.")
+        except Exception as e:
+            print(f"Error loading or processing the image: {e}")
+
+# Now, the image will be displayed within 'image_frame' while maintaining its aspect ratio.
 
         # Display the date and time of the image file
         image_date_time = datetime.datetime.fromtimestamp(os.path.getmtime(latest_image_path))
-        date_time_label.config(text=f"Image Index: {current_index+1}/{len(filtered_images)}          Filename: {os.path.basename(latest_image_path)}       Date Time: {image_date_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        date_time_label.config(text=f"Index: {current_index+1}/{len(filtered_images)} | File: {os.path.basename(latest_image_path)} |  DateTime: {image_date_time.strftime('%Y-%m-%d %H:%M:%S')}")
 
     else:
         label.config(text="No folder selected.")
         folder_label.config(text="Selected Folder:")
         date_time_label.config(text="Filename:  Date Time:")
         print("no folder selected")
+
+def crop_square_center_origin(image_path, crop_factor):
+    # Open the original image
+    image = Image.open(image_path)
+
+    # Get the dimensions of the original image
+    width, height = image.size
+
+    # Calculate the size of the square based on the crop factor (in %)
+    min_dimension = min(width, height)
+    square_size = int(min_dimension * (1/crop_factor))
+
+    # Calculate the coordinates for the top-left and bottom-right corners of the square
+    left = (width - square_size) // 2
+    upper = (height - square_size) // 2
+    right = left + square_size
+    lower = upper + square_size
+
+    # Crop the original image to the square
+    cropped_image = image.crop((left, upper, right, lower))
+
+    return cropped_image
 
 
 def select_folder():
@@ -219,6 +284,7 @@ def follow_latest_image():
         set_from_now()
         current_index = 100000000000                               #Set index to something big to show latest image
         show_latest_image()
+        index_slider.set(current_index+1)
         print("updating latest")
         after_id = root.after(1000, follow_latest_image)  # Assign the after ID
 
@@ -452,6 +518,25 @@ def launch_inspection_window():
     if len(filtered_images):
         inspection_window.run_image_viewer(filtered_images[current_index])
 
+def new_scale_entry(event):
+    global crop_factor
+    new_entry = crop_factor_entry.get()
+    try:
+        crop_factor = float(new_entry)
+        # Now, crop_factor contains the float value.
+        if crop_factor > 8:
+            crop_factor = 8
+            crop_factor_entry.delete(0, 'end')
+            crop_factor_entry.insert(0, crop_factor)
+
+    except ValueError:
+        # Handle the case where the input cannot be converted to a float (e.g., non-numeric input).
+        print("Invalid input. Please enter a valid number.")
+        crop_factor_entry.delete(0, 'end')
+        crop_factor_entry.insert(0, 1.0)
+    show_latest_image()
+
+
 #*************************************************************************************************************#
 #****************************************     GUI     ********************************************************#
 #*************************************************************************************************************#
@@ -472,7 +557,7 @@ root.title("BSE Image Viewer")
 # Create a frame to hold the control buttons
 control_frame = tk.Frame(root)
 control_frame.pack(side=tk.LEFT, padx=(border_pading,5), pady=0)
-#gicontrol_frame.configure(bg="light green")
+#control_frame.configure(bg="light green")
 
 
 
@@ -493,7 +578,7 @@ image_control_frame.grid_columnconfigure(0, weight=1)
 # Create a frame to hold image and information
 image_frame = tk.Frame(root)
 image_frame.pack(fill=tk.BOTH, expand=True, padx=(0,border_pading), pady=(border_pading,0))
-#image_frame.configure(bg="dark grey")
+#control_frame.configure(bg="light green")
 #image_control_frame.grid_rowconfigure(1, weight=1)
 #image_control_frame.grid_columnconfigure(0, weight=1)
 
@@ -507,7 +592,7 @@ label.pack(side=tk.BOTTOM)
 #-------------------------------- Create Lower control frame 2 content ----------------------------------------#
 #create button for insepction window
 open_other_script_button = tk.Button(image_control_frame2, text="Inspection Window", command=launch_inspection_window)
-open_other_script_button.pack(side=tk.LEFT,padx=(10,90))
+open_other_script_button.pack(side=tk.LEFT,padx=(10,80))
 
 # Create navigation buttons next, prev
 previous_button = tk.Button(image_control_frame2, text="Previous",width=8, height=1, command=previous_image)
@@ -518,7 +603,7 @@ next_button.pack(side=tk.LEFT,padx=(10,10))
 
 # Create a button to toggle "Follow Latest" mode
 follow_latest_button = tk.Button(image_control_frame2, text="Follow Latest", width=16, height=1, command=toggle_follow_latest)
-follow_latest_button.pack(side=tk.LEFT,padx=(90,10))
+follow_latest_button.pack(side=tk.LEFT,padx=(80,10))
 
 #-------------------------------- Create Lower control frame content ----------------------------------------#
 # Create a scale widget to set the current index
@@ -530,7 +615,7 @@ index_slider.bind("<ButtonPress-1>", handle_slider_click)
 index_slider.bind("<ButtonRelease-1>", handle_slider_release)
 
 # Create a label to display the date and time of the image
-date_time_label = tk.Label(image_control_frame, text="Filename:  Date Time:", font=("TkDefaultFont", 14))
+date_time_label = tk.Label(image_control_frame, text="Filename:  Date Time:", font=("TkDefaultFont", 11))
 date_time_label.grid(row=2, column=0, columnspan=2, padx=10, pady=0)
 
 # Create a label with the default font
@@ -562,11 +647,21 @@ text_input_label.pack(side=tk.TOP, padx=10, pady=0)
 text_input = tk.Entry(control_frame)
 text_input.pack(side=tk.TOP, padx=10, pady=0)
 
+# Create an Entry widget for mm/pixel input
+crop_factor_entry = tk.Entry(control_frame)
+crop_factor_entry.pack(side=tk.BOTTOM, padx=(0,0) , pady=(0,0))
+crop_factor_entry.insert(0, "1.0")  # Default value
+crop_factor_entry.bind("<Return>", new_scale_entry)
+crop_factor_label = tk.Label(control_frame, text="Crop Factor")
+crop_factor_label.pack(side=tk.BOTTOM, padx=(0,0) , pady=(8,0))
+
 # Create a checkbox for enabling/disabling the overlay
 overlay_checkbox_var = tk.BooleanVar()
 overlay_checkbox = ttk.Checkbutton(control_frame, text="Add index overlay", variable=overlay_checkbox_var, command=toggle_overlay)
 overlay_checkbox.pack(side=tk.BOTTOM, padx=10, pady=10)
 overlay_checkbox.state(['!alternate'])
+
+
 
 #Duration label
 duration_label = tk.Label(control_frame, text="Duration:")
@@ -592,6 +687,8 @@ set_filename_button.pack(side=tk.BOTTOM, padx=10, pady=10)
 export_button = tk.Button(control_frame, text="Export Images", command=export_images)
 export_button.pack(side=tk.BOTTOM, padx=10, pady=10)
 
+
+
 # Add a basename entry widget to the UI
 basename_input = tk.Entry(control_frame)
 basename_input.pack(side=tk.BOTTOM, padx=10, pady=0)
@@ -601,7 +698,7 @@ basename_label.pack(side=tk.BOTTOM, padx=0, pady=0)
 # Add index a prefix entry widget
 prefix_input = tk.Entry(control_frame)
 prefix_input.pack(side=tk.BOTTOM, padx=10, pady=0)
-prefix_label = tk.Label(control_frame, text="Filename: _Prefix:")
+prefix_label = tk.Label(control_frame, text="Filename: Prefix_:")
 prefix_label.pack(side=tk.BOTTOM, padx=0, pady=0)
 
 # Create a button to select a folder
@@ -684,4 +781,5 @@ folder_label.config(text=f"Selected Folder: {selected_folder}")
 show_latest_image()
 calculate_timelapse_duration()
 # Run the tkinter main loop
+root.geometry("920x980")
 root.mainloop()
